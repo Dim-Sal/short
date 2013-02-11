@@ -1,0 +1,1 @@
+This is a short C++ project indroducing multi-threaded programming, memory management, and Boost Libraries. The objective is the implementation of the Producers/Consumers problem, so as to ensure exclusive thread access to shared resources avoiding memory leakage.
