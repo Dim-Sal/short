@@ -5,14 +5,14 @@
  *  - sets all (user-defined/default) market parameters
  *  - initialises resources and counters
  */
-Market::Market(Run_Options* opt)
+Market::Market(run_options* opt)
 {
     // set all parameters
-    num_of_producers = opt->get_numOfProducers();
-    num_of_consumers = opt->get_numOfConsumers();
-    production_duration = opt->get_prodDuration();
-    consumption_duration = opt->get_conDuration();
-    market_buffer_size = opt->get_marketBuffSize();
+    num_of_producers = opt->num_of_producers;
+    num_of_consumers = opt->num_of_consumers;
+    production_duration = opt->production_duration;
+    consumption_duration = opt->consumption_duration;
+    market_buffer_size = opt->market_buffer_size;
 
     // initialise resources and counters
     market_buffer = new int[market_buffer_size];

@@ -11,7 +11,7 @@ using namespace std;
 class Market
 {
 public:
-    Market(Run_Options* opt);
+    Market(run_options* opt);
     void run();
 
 private:

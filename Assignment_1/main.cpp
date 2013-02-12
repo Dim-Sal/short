@@ -39,8 +39,8 @@
  * Date:   Feb 6th, 2013
  */
 
-void setOptions(int num_of_args, char* arg_vector[], Run_Options* opt);
-void showOptions(Run_Options* opt);
+void setOptions(int num_of_args, char* arg_vector[], run_options* opt);
+void showOptions(run_options* opt);
 
 /*
  * Main function
@@ -51,19 +51,26 @@ int main(int argc, char* argv[])
          << "          --------------------------------" << endl << endl;
 
     // create an object to store and handle options
-    Run_Options* opt = new Run_Options();
+    run_options* opt;
 
-    // parse and assign options
+    // default parameters are set here
+    opt->num_of_producers = 10;      // threads
+    opt->num_of_consumers = 10;      // threads
+    opt->production_duration = 500;  // milliseconds
+    opt->consumption_duration = 500; // milliseconds
+    opt->market_buffer_size = 1000;  // integers
+
+    // parse and assign user-defined options (if any)
     setOptions(argc, argv, opt);
 
     // display options
     showOptions(opt);
 
     // create an object to simulate the producers-consumers problem
-    Market* MyMarket = new Market(opt);
+    Market MyMarket(opt);
 
     // trigger the simulation
-    MyMarket->run();
+    MyMarket.run();
 
     return 0;
 }
@@ -71,14 +78,15 @@ int main(int argc, char* argv[])
 /*
  * Parses arguments into Run_Options' members
  */
-void setOptions(int num_of_args, char* arg_vector[], Run_Options* opt)
+void setOptions(int num_of_args, char* arg_vector[], run_options* opt)
 {
     switch (num_of_args)
     {
     case 1:
-        // default parameters are already set through the Run_Options constructor
+        // using default parameters
         cout << "\t  DEFAULT parameters are being used: " << endl << endl;
         break;
+
     case 2: // *** TODO: check and validate...
     case 3: // *** TODO: check and validate...
     case 4: // *** TODO: check and validate...
@@ -92,21 +100,24 @@ void setOptions(int num_of_args, char* arg_vector[], Run_Options* opt)
         getline(cin, use_default);
         if ((use_default.substr(0,1) == "Y") || (use_default == "y"))
         {
-            // default parameters are already set through the Run_Options constructor
+            // using default parameters
             cout << endl << endl;
             break;
         }
         else cout << "\n *** Programme is being terminated... *** \n" << endl;
-        sleep(3);
+
+        // wait 2 seconds for the exit message to be read
+        sleep(2);
         exit(-1);
         }
     case 6:
     {
-        opt->set_numOfProducers((int) strtod(arg_vector[1], NULL));
-        opt->set_numOfConsumers((int) strtod(arg_vector[2], NULL));
-        opt->set_prodDuration((int) strtod(arg_vector[3], NULL));
-        opt->set_conDuration((int) strtod(arg_vector[4], NULL));
-        opt->set_marketBuffSize((int) strtod(arg_vector[5], NULL));
+        // *** TODO: check and validate...
+        opt->num_of_producers = (int) strtod(arg_vector[1], NULL);
+        opt->num_of_consumers = (int) strtod(arg_vector[2], NULL);
+        opt->production_duration = (int) strtod(arg_vector[3], NULL);
+        opt->consumption_duration = (int) strtod(arg_vector[4], NULL);
+        opt->market_buffer_size = (int) strtod(arg_vector[5], NULL);
         break;
     }
     default:
@@ -118,15 +129,14 @@ void setOptions(int num_of_args, char* arg_vector[], Run_Options* opt)
 /*
  * Displays options to be used
  */
-void showOptions(Run_Options* opt)
+void showOptions(run_options* opt)
 {
-    string dummy_input = "";
+    cout << "\t  Number of producers: " << opt->num_of_producers << " threads" << endl
+         << "\t  Number of consumers: " << opt->num_of_consumers << " threads" << endl
+         << "\t  Production duration: " << opt->production_duration << " milliseconds" << endl
+         << "\t Consumption duration: " << opt->consumption_duration << " milliseconds" << endl
+         << "\t Market-buffer length: " << opt->market_buffer_size << " integers" << endl << endl;
 
-    cout << "\t  Number of producers: " << opt->get_numOfProducers() << " threads" << endl
-         << "\t  Number of consumers: " << opt->get_numOfConsumers() << " threads" << endl
-         << "\t  Production duration: " << opt->get_prodDuration() << " milliseconds" << endl
-         << "\t Consumption duration: " << opt->get_conDuration() << " milliseconds" << endl
-         << "\t Market-buffer length: " << opt->get_marketBuffSize() << " integers" << endl << endl
-         << "Press <RETURN> key to continue..." << endl;
-    getline(cin, dummy_input);
+    // wait 2 seconds for the display to be read
+    sleep(3);
 }

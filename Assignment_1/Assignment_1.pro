@@ -18,8 +18,7 @@ TEMPLATE = app
 SOURCES += main.cpp \
     producer.cpp \
     consumer.cpp \
-    market.cpp \
-    run_options.cpp
+    market.cpp
 INCLUDEPATH += /home/jim/boost_1_52_0
 LIBS += -L/home/jim/boost_1_52_0/stage/lib -lboost_system -lboost_thread -lboost_chrono
 
