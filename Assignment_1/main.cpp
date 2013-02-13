@@ -28,13 +28,6 @@
  *               buffer-length: [1000] integers
  *
  * ---------------------------------------------------------------------------------------------
- * NOTE: Limitation on max threads used -> it works OK with up to 381 threads
- *        - with 382 threads (191 producers + 191 consumers) it can not create any more threads
- *          it throws:
- *
- *            " boost thread: failed in pthread_create: Resource temporarily unavailable "
- *
- * ---------------------------------------------------------------------------------------------
  * Author: Dimitris Saliaris
  * Date:   Feb 6th, 2013
  */
