@@ -140,21 +140,15 @@ void Market::run()
     // create and launch all producer threads
     for (int i=0; i<num_of_producers; i++)
     {
-       // Producer* producer = new Producer(i+1);
         Producer producer(i+1);
         threads.create_thread(boost::bind(&Market::buffer_write, this, producer));
-       // delete producer;
-       // producer = NULL;
     }
 
     // create and launch all consumer threads
     for (int i=0; i<num_of_consumers; i++)
     {
-       // Consumer* consumer = new Consumer();
         Consumer consumer;
         threads.create_thread(boost::bind(&Market::buffer_read, this, consumer));
-      //  delete consumer;
-      //  consumer = NULL;
     }
 
     threads.join_all();
