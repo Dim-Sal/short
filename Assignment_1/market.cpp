@@ -5,14 +5,14 @@
  *  - sets all (user-defined/default) market parameters
  *  - initialises resources and counters
  */
-Market::Market(run_options* opt)
+Market::Market(run_options* p_opt)
 {
     // set all parameters
-    num_of_producers = opt->num_of_producers;
-    num_of_consumers = opt->num_of_consumers;
-    production_duration = opt->production_duration;
-    consumption_duration = opt->consumption_duration;
-    market_buffer_size = opt->market_buffer_size;
+    num_of_producers = p_opt->num_of_producers;
+    num_of_consumers = p_opt->num_of_consumers;
+    production_duration = p_opt->production_duration;
+    consumption_duration = p_opt->consumption_duration;
+    market_buffer_size = p_opt->market_buffer_size;
 
     // initialise resources and counters
     market_buffer = new int[market_buffer_size];
@@ -32,7 +32,7 @@ Market::Market(run_options* opt)
  *  - if the buffer is being used, all other threads (both producers and consumers) wait on the mutex
  *  - if buffer is full, producer-threads wait on the condition_variable_any object
  */
-void Market::buffer_write()
+void Market::buffer_write(Producer current_producer)
 {
     while (true) // infinate loop
     {
@@ -47,8 +47,7 @@ void Market::buffer_write()
 
         // produce one unit and write it in the next free buffer slot
         prod_counter++;
-        Producer* current_producer = new Producer(prod_counter);
-        market_buffer[item_counter] = current_producer->produce();
+        market_buffer[item_counter] = current_producer.produce();
 
             /* ---------------------------------------------------------------------------------------------------------
              * NOTE: in terms of functionality, the 3 code lines above could have been replaced with:
@@ -62,7 +61,7 @@ void Market::buffer_write()
              */
 
         // sleep for a while (as for doing some calculation...)
-        boost::this_thread::sleep_for(boost::chrono::microseconds(production_duration*1000));
+        usleep(production_duration*1000);
         cout << "   [" << item_counter << "]   PRODUCTION: " << prod_counter << " --> produced: " << market_buffer[item_counter] << endl;
 
         // increase item counter (also represents the buffer INDEX for the next available slot for production)
@@ -86,7 +85,7 @@ void Market::buffer_write()
  *  - if the buffer is being used, all other threads (both producers and consumers) wait on the mutex
  *  - if buffer is empty, consumer-threads wait on the condition_variable_any object
  */
-void Market::buffer_read()
+void Market::buffer_read(Consumer current_consumer)
 {
     while (true) // infinate loop
     {
@@ -101,8 +100,7 @@ void Market::buffer_read()
 
         // consume one unit from the last occupied buffer slot
         cons_counter++;
-        Consumer* current_consumer = new Consumer();
-        current_consumer->consume(market_buffer[item_counter-1]);
+        current_consumer.consume(market_buffer[item_counter-1]);
 
             /* --------------------------------------------------------------------------------------------------
              * NOTE: the 3 code lines above could have been replaced with:
@@ -114,7 +112,7 @@ void Market::buffer_read()
              */
 
         // sleep for a while (as for doing some calculation...)
-        boost::this_thread::sleep_for(boost::chrono::microseconds(consumption_duration*1000));
+        usleep(consumption_duration*1000);
         cout << "   [" << item_counter-1 << "]   CONSUMPTION: " << cons_counter << " <-- consumed: " << market_buffer[item_counter-1] << endl;
 
         // decrease item counter
@@ -142,13 +140,21 @@ void Market::run()
     // create and launch all producer threads
     for (int i=0; i<num_of_producers; i++)
     {
-        threads.create_thread(boost::bind(&Market::buffer_write, this));
+       // Producer* producer = new Producer(i+1);
+        Producer producer(i+1);
+        threads.create_thread(boost::bind(&Market::buffer_write, this, producer));
+       // delete producer;
+       // producer = NULL;
     }
 
     // create and launch all consumer threads
     for (int i=0; i<num_of_consumers; i++)
     {
-        threads.create_thread(boost::bind(&Market::buffer_read, this));
+       // Consumer* consumer = new Consumer();
+        Consumer consumer;
+        threads.create_thread(boost::bind(&Market::buffer_read, this, consumer));
+      //  delete consumer;
+      //  consumer = NULL;
     }
 
     threads.join_all();

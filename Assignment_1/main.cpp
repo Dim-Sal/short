@@ -39,8 +39,8 @@
  * Date:   Feb 6th, 2013
  */
 
-void setOptions(int num_of_args, char* arg_vector[], run_options* opt);
-void showOptions(run_options* opt);
+void setOptions(int num_of_args, char* arg_vector[], run_options* p_opt);
+void showOptions(run_options* p_opt);
 
 /*
  * Main function
@@ -51,23 +51,23 @@ int main(int argc, char* argv[])
          << "          --------------------------------" << endl << endl;
 
     // create an object to store and handle options
-    run_options* opt;
+    run_options opt;
 
     // default parameters are set here
-    opt->num_of_producers = 10;      // threads
-    opt->num_of_consumers = 10;      // threads
-    opt->production_duration = 500;  // milliseconds
-    opt->consumption_duration = 500; // milliseconds
-    opt->market_buffer_size = 1000;  // integers
+    opt.num_of_producers = 10;      // threads
+    opt.num_of_consumers = 10;      // threads
+    opt.production_duration = 500;  // milliseconds
+    opt.consumption_duration = 500; // milliseconds
+    opt.market_buffer_size = 1000;  // integers
 
     // parse and assign user-defined options (if any)
-    setOptions(argc, argv, opt);
+    setOptions(argc, argv, &opt);
 
     // display options
-    showOptions(opt);
+    showOptions(&opt);
 
     // create an object to simulate the producers-consumers problem
-    Market MyMarket(opt);
+    Market MyMarket(&opt);
 
     // trigger the simulation
     MyMarket.run();
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 /*
  * Parses arguments into Run_Options' members
  */
-void setOptions(int num_of_args, char* arg_vector[], run_options* opt)
+void setOptions(int num_of_args, char* arg_vector[], run_options* p_opt)
 {
     switch (num_of_args)
     {
@@ -113,11 +113,11 @@ void setOptions(int num_of_args, char* arg_vector[], run_options* opt)
     case 6:
     {
         // *** TODO: check and validate...
-        opt->num_of_producers = (int) strtod(arg_vector[1], NULL);
-        opt->num_of_consumers = (int) strtod(arg_vector[2], NULL);
-        opt->production_duration = (int) strtod(arg_vector[3], NULL);
-        opt->consumption_duration = (int) strtod(arg_vector[4], NULL);
-        opt->market_buffer_size = (int) strtod(arg_vector[5], NULL);
+        p_opt->num_of_producers = (int) strtod(arg_vector[1], NULL);
+        p_opt->num_of_consumers = (int) strtod(arg_vector[2], NULL);
+        p_opt->production_duration = (int) strtod(arg_vector[3], NULL);
+        p_opt->consumption_duration = (int) strtod(arg_vector[4], NULL);
+        p_opt->market_buffer_size = (int) strtod(arg_vector[5], NULL);
         break;
     }
     default:
@@ -129,13 +129,13 @@ void setOptions(int num_of_args, char* arg_vector[], run_options* opt)
 /*
  * Displays options to be used
  */
-void showOptions(run_options* opt)
+void showOptions(run_options* p_opt)
 {
-    cout << "\t  Number of producers: " << opt->num_of_producers << " threads" << endl
-         << "\t  Number of consumers: " << opt->num_of_consumers << " threads" << endl
-         << "\t  Production duration: " << opt->production_duration << " milliseconds" << endl
-         << "\t Consumption duration: " << opt->consumption_duration << " milliseconds" << endl
-         << "\t Market-buffer length: " << opt->market_buffer_size << " integers" << endl << endl;
+    cout << "\t  Number of producers: " << p_opt->num_of_producers << " threads" << endl
+         << "\t  Number of consumers: " << p_opt->num_of_consumers << " threads" << endl
+         << "\t  Production duration: " << p_opt->production_duration << " milliseconds" << endl
+         << "\t Consumption duration: " << p_opt->consumption_duration << " milliseconds" << endl
+         << "\t Market-buffer length: " << p_opt->market_buffer_size << " integers" << endl << endl;
 
     // wait 2 seconds for the display to be read
     sleep(3);
