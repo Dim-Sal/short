@@ -5,7 +5,15 @@ Producer::Producer(int id)
     produced_item = id;
 }
 
-int Producer::produce()
+/*
+ * Representation of some production
+ */
+void Producer::produce(int duration)
+{
+    usleep(duration);
+}
+
+int Producer::get_item()
 {
     return produced_item;
 }

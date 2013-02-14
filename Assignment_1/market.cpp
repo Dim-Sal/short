@@ -36,6 +36,9 @@ void Market::buffer_write(Producer current_producer)
 {
     while (true) // infinate loop
     {
+        // produce (sleep) BEFORE entering the critical section
+        current_producer.produce(production_duration*1000);
+
         // if mutex is unlocked, the producer-thread locks it and accesses the code, else it waits for its turn
         boost::mutex::scoped_lock write_lock(buffer_mutex);
 
@@ -45,26 +48,13 @@ void Market::buffer_write(Producer current_producer)
             buff_FULL.wait(write_lock);
         }
 
-        // produce one unit and write it in the next free buffer slot
-        prod_counter++;
-        market_buffer[item_counter] = current_producer.produce();
+        // write in the next free buffer slot
+        market_buffer[item_counter] = current_producer.get_item();
 
-            /* ---------------------------------------------------------------------------------------------------------
-             * NOTE: in terms of functionality, the 3 code lines above could have been replaced with:
-             *
-             *               market_buffer[item_counter] = ++prod_counter;
-             *
-             *       ...with no need for the Producer Class whatsoever. However, I just wanted to illustrate that
-             *       produsers/consumers could represent a more elaborate structure (implemented as a Class in this case)
-             *       and as such, they should be responsible for their members (i.e. product, produce(), etc).
-             * ----------------------------------------------------------------------------------------------------------
-             */
+        // show: buffer-index -- number of units produced so far -- product (actually the thread number)
+        cout << "   [" << item_counter << "]   PRODUCTION: " << ++prod_counter << " --> produced: " << market_buffer[item_counter] << endl;
 
-        // sleep for a while (as for doing some calculation...)
-        usleep(production_duration*1000);
-        cout << "   [" << item_counter << "]   PRODUCTION: " << prod_counter << " --> produced: " << market_buffer[item_counter] << endl;
-
-        // increase item counter (also represents the buffer INDEX for the next available slot for production)
+        // increase item counter (also represents the buffer INDEX for the next available slot for writting)
         item_counter++;
 
         // if this is the first production after an empty buffer, notify a consumer (if any is waiting)
@@ -72,9 +62,6 @@ void Market::buffer_write(Producer current_producer)
         {
             buff_EMPTY.notify_one();
         }
-
-        // unlock the mutex
-        write_lock.unlock();
 
     } // end(while)
 }
@@ -87,6 +74,9 @@ void Market::buffer_write(Producer current_producer)
  */
 void Market::buffer_read(Consumer current_consumer)
 {
+    // consume (sleep) BEFORE entering the critical section
+    current_consumer.consume(consumption_duration*1000);
+
     while (true) // infinate loop
     {
         // if mutex is unlocked, the consumer-thread locks it and accesses the code, else it waits for its turn
@@ -98,22 +88,11 @@ void Market::buffer_read(Consumer current_consumer)
             buff_EMPTY.wait(read_lock);
         }
 
-        // consume one unit from the last occupied buffer slot
-        cons_counter++;
+        // read from the last occupied buffer slot
         current_consumer.consume(market_buffer[item_counter-1]);
 
-            /* --------------------------------------------------------------------------------------------------
-             * NOTE: the 3 code lines above could have been replaced with:
-             *
-             *             cout << "buffer[" << item_counter-1 << "] = " << market_buffer[item_counter-1] << endl;
-             *
-             * (see also NOTE in buffer_write)
-             * ---------------------------------------------------------------------------------------------------
-             */
-
-        // sleep for a while (as for doing some calculation...)
-        usleep(consumption_duration*1000);
-        cout << "   [" << item_counter-1 << "]   CONSUMPTION: " << cons_counter << " <-- consumed: " << market_buffer[item_counter-1] << endl;
+        // show: buffer-index -- number of units consumed so far -- product (actually the producer-thread number)
+        cout << "   [" << item_counter-1 << "]   CONSUMPTION: " << ++cons_counter << " <-- consumed: " << market_buffer[item_counter-1] << endl;
 
         // decrease item counter
         item_counter--;
@@ -123,8 +102,6 @@ void Market::buffer_read(Consumer current_consumer)
         {
             buff_FULL.notify_one();
         }
-
-        read_lock.unlock();
     }
 }
 
@@ -152,4 +129,14 @@ void Market::run()
     }
 
     threads.join_all();
+}
+
+/*
+ * Destructor
+ *  - Explicitly frees all object memory
+ */
+Market::~Market()
+{
+    // Free memory allocated for the market buffer
+    delete[] this->market_buffer;
 }
