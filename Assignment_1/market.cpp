@@ -1,7 +1,7 @@
 #include "market.h"
 
 /*
- * Default constructor
+ * Constructor
  *  - sets all (user-defined/default) market parameters
  *  - initialises resources and counters
  */
@@ -74,11 +74,11 @@ void Market::buffer_write(Producer current_producer)
  */
 void Market::buffer_read(Consumer current_consumer)
 {
-    // consume (sleep) BEFORE entering the critical section
-    current_consumer.consume(consumption_duration*1000);
-
     while (true) // infinate loop
     {
+        // consume (sleep) BEFORE entering the critical section
+        current_consumer.consume(consumption_duration*1000);
+
         // if mutex is unlocked, the consumer-thread locks it and accesses the code, else it waits for its turn
         boost::mutex::scoped_lock read_lock(buffer_mutex);
 

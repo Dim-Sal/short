@@ -1,6 +1,6 @@
 #-------------------------------------------------
 #
-# Project created by QtCreator 2013-02-02T12:29:29
+# Project created by QtCreator 2013-02-20T15:26:32
 #
 #-------------------------------------------------
 
@@ -8,23 +8,19 @@ QT       += core
 
 QT       -= gui
 
-TARGET = Assignment_1
+TARGET = Assignment_2
 CONFIG   += console
 CONFIG   -= app_bundle
 
 TEMPLATE = app
 
-
-SOURCES += main.cpp \
-    producer.cpp \
-    consumer.cpp \
-    market.cpp
-
 INCLUDEPATH += /home/jim/boost_1_52_0
 LIBS += -L/home/jim/boost_1_52_0/stage/lib -lboost_system -lboost_thread -lboost_chrono
 
+SOURCES += main.cpp \
+    publisher.cpp \
+    subscriber.cpp
+
 HEADERS += \
-    producer.h \
-    consumer.h \
-    market.h \
-    run_options.h
+    publisher.h \
+    subscriber.h

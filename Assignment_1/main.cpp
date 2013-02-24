@@ -131,5 +131,5 @@ void showOptions(run_options* p_opt)
          << "\t Market-buffer length: " << p_opt->market_buffer_size << " integers" << endl << endl;
 
     // wait 2 seconds for the display to be read
-    sleep(3);
+    sleep(2);
 }
