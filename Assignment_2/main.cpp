@@ -41,7 +41,7 @@ void ShowOptions(Options* p_opt);
 int main(int argc, char* argv[])
 {
     std::cout << "          Publishers-Subscribers demo running" << std::endl
-         << "          -----------------------------------" << std::endl << std::endl;
+              << "          -----------------------------------" << std::endl << std::endl;
 
     // parse, assign, and show user-defined options (or default)
     Options options;
@@ -65,6 +65,7 @@ int main(int argc, char* argv[])
     }
 
     // initialise some utility variables for random shuffling and selection
+    srand(time(NULL));  // random seed initialisation
     int num_of_con = 0;
     int indices[num_of_pub];
     for(int i=0; i<num_of_pub; i++)

@@ -22,8 +22,8 @@ class Subscriber
     private:
         std::vector<boost::signals2::connection> connections_;  // connections to publishers (unused for now)
         boost::mutex message_mutex_;                            // resource mutex
-        boost::condition_variable_any message_set_,             // condition variable for subscribers
-                                      display_set_;             // condition variable for publishers
+        boost::condition_variable message_set_,             // condition variable for subscribers
+                                  display_set_;             // condition variable for publishers
         bool wait_for_signal_,  // flag for subscriber to wait
              pending_display_;  // flag for publisher to wait
         std::string message_;   // shared resource

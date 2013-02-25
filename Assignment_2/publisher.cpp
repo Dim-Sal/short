@@ -30,6 +30,7 @@ void Publisher::PublishData()
         message.assign("");
 
         // sleep so as to simulate random message emission (range: from 0.1 to 0.9 seconds)
+        srand(time(NULL));  // random seed initialisation
         sleep_duration = (rand() % 9 + 1) * 100000;
         usleep(sleep_duration);
     }
