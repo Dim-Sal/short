@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<local id="sub_2" communication_threads_count="5"/>
+<remote_connections count="2">
+  <publisher id="pub_2" ip="127.0.0.1" port="6666"/>
+</remote_connections>
