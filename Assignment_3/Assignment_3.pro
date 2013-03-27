@@ -19,8 +19,11 @@ LIBS += -L/home/jim/boost_1_52_0/stage/lib -lboost_system -lboost_thread -lboost
 
 SOURCES += main.cpp \
     publisher.cpp \
-    subscriber.cpp
+    subscriber.cpp \
+    communication.cpp
 
 HEADERS += \
     publisher.h \
-    subscriber.h
+    subscriber.h \
+    communication.h \
+    options.h
