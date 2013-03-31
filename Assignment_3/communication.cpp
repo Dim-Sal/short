@@ -77,68 +77,18 @@ void Communication::Write(std::string str, int length)
 {
     // lock any "sockets_.size()" usage/modification
     com_mutex_.lock();
-    iter_pending_ = true;
 
     for (unsigned i=0; i<sockets_.size(); i++)
     {
-        if (handle_returned_[i])  // if this socket's WriteHandler invocation returned
-        {
-            handle_returned_[i] = false;
-
-            // send message through the sockets_
-            boost::asio::async_write(*sockets_[i],
-                                     boost::asio::buffer(str, length),
-                                     boost::bind(&Communication::WriteHandler,
-                                                 this,
-                                                 boost::asio::placeholders::error,
-                                                 boost::asio::placeholders::bytes_transferred,
-                                                 i));
-
-        }
+        // send message through the sockets_
+        boost::asio::async_write(*sockets_[i],
+                                 boost::asio::buffer(str, length),
+                                 boost::bind(&Communication::WriteHandler,
+                                             this,
+                                             boost::asio::placeholders::error,
+                                             boost::asio::placeholders::bytes_transferred,
+                                             sockets_[i]));
     }
-
-    iter_pending_ = false;
-    pending_iter_.notify_one();
-
-    // unlock any "sockets_.size()" usage/modification
-    com_mutex_.unlock();
-
-    // wait for all write operations to finish
-    while (!all_handles_returned_)
-    {
-        all_handles_returned_ = true;
-
-        // check if all write operations returned
-        for (unsigned i=0; i<handle_returned_.size(); i++)
-        {
-            all_handles_returned_ &= handle_returned_[i];
-        }
-    }
-
-    all_handles_returned_ = false;
-
-    // lock any "sockets_.size()" usage/modification
-    com_mutex_.lock();
-
-    // remove disconnected clients' elements (based on the "remove_" flags)
-    for (unsigned i=0; i<remove_.size(); i++)
-    {
-        if (remove_[i])
-        {
-            out_mutex_.lock();
-            std::cout << "\n[" << boost::this_thread::get_id()
-                      <<  "] << Subscriber disconnected \n" << std::endl;
-            out_mutex_.unlock();
-
-            // erase all client related elements
-            sockets_[i]->close();
-            sockets_.erase(sockets_.begin()+i);
-            handle_returned_.erase(handle_returned_.begin()+i);
-        }
-    }
-
-    // erase the flags too
-    remove_.erase(std::remove(remove_.begin(), remove_.end(), true), remove_.end());
 
     // unlock any "sockets_.size()" usage/modification
     com_mutex_.unlock();
@@ -162,11 +112,12 @@ void Communication::Connect(int servers_count, std::vector<Connection> servers)
     {
         boost::shared_ptr<boost::asio::ip::tcp::socket> sock(new boost::asio::ip::tcp::socket(*io_service_));
 
+        // get the pub from the options
+        Connection con = servers[i];
+        boost::shared_ptr<std::string> server_name(new std::string(con.pub_id));
+
         try
         {
-            // get the pub from the options
-            Connection con = servers[i];
-
             // try to connect
             boost::asio::ip::tcp::resolver resolver(*io_service_);
             boost::asio::ip::tcp::resolver::query query(con.ip, con.port);
@@ -179,7 +130,7 @@ void Communication::Connect(int servers_count, std::vector<Connection> servers)
                                             boost::asio::placeholders::error(),
                                             sock,
                                             endpoint,
-                                            con.pub_id));
+                                            server_name));
 
             std::cout << "[" << boost::this_thread::get_id()
                       << "] Connecting to: " << endpoint << std::endl;
@@ -195,78 +146,41 @@ void Communication::Connect(int servers_count, std::vector<Connection> servers)
 }
 
 /*
- * Reads from server(s)' remote host
- *  - @client_id: the client's identifier
+ * Reads from server(s)
  */
-void Communication::Read(std::string client_id)
+void Communication::Read()
 {
-    // lock any "sockets_.size()" usage/modification
-    com_mutex_.lock();
-    iter_pending_ = true;
-
-    for (unsigned i=0; i<sockets_.size(); i++)
+    while (!NoConnections() && Running())
     {
-        if (handle_returned_[i])  // if this socket's ReadHandler invocation returned
+        boost::mutex::scoped_lock iter_lock(com_mutex_);
+
+        // wait for a new server to be added
+        while (is_pending_add_)
         {
-            handle_returned_[i] = false;
-            boost::asio::async_read(*sockets_[i],
-                                    boost::asio::buffer(buf_[i], 30),
-                                    boost::bind(&Communication::ReadHandler,
-                                                this,
-                                                boost::asio::placeholders::error,
-                                                boost::asio::placeholders::bytes_transferred,
-                                                client_id,
-                                                i));
+            pending_add_condition_.wait(iter_lock);
         }
-    }
 
-    iter_pending_ = false;
-    pending_iter_.notify_one();
-
-    // unlock any "sockets_.size()" usage/modification
-    com_mutex_.unlock();
-
-    // wait for all read operations to finish
-    while (!all_handles_returned_)
-    {
-        all_handles_returned_ = true;
-
-        // check if all read operations returned
-        for (unsigned i=0; i<handle_returned_.size(); i++)
+        for (unsigned i=0; i<sockets_.size(); i++)
         {
-            all_handles_returned_ &= handle_returned_[i];
+            // first async_read for sockets_[i]
+            if (!is_reading_[i])
+            {
+                boost::asio::async_read(*sockets_[i],
+                                        boost::asio::buffer(*buf_[i], 30),
+                                        boost::bind(&Communication::ReadHandler,
+                                                    this,
+                                                    boost::asio::placeholders::error,
+                                                    boost::asio::placeholders::bytes_transferred,
+                                                    buf_[i],
+                                                    servers_[i],
+                                                    sockets_[i]));
+            }
+
+            is_reading_[i] = true;
         }
+
+        is_pending_add_ = true;
     }
-
-    all_handles_returned_ = false;
-
-    // lock any "sockets_.size()" usage/modification
-    com_mutex_.lock();
-
-    // remove disconnected pubs (based on the "remove_" flags)
-    for (unsigned i=0; i<remove_.size(); i++)
-    {
-        if (remove_[i])
-        {
-            out_mutex_.lock();
-            std::cout << "\n[" << boost::this_thread::get_id()
-                      << "] << " << servers_[i]<< " is now disconnected \n" << std::endl;
-            out_mutex_.unlock();
-
-            // erase all server related elements
-            sockets_[i]->close();
-            sockets_.erase(sockets_.begin()+i);
-            servers_.erase(servers_.begin()+i);
-            buf_.erase(buf_.begin()+i);
-            handle_returned_.erase(handle_returned_.begin()+i);
-        }
-    }
-
-    // erase the flags too
-    remove_.erase(std::remove(remove_.begin(), remove_.end(), true), remove_.end());
-
-    // unlock any "sockets_.size()" usage/modification
-    com_mutex_.unlock();
 }
 
 /*
@@ -285,11 +199,25 @@ void Communication::PrepareForExit(std::string role)
     for (unsigned i=0; i<sockets_.size(); i++)
     {
         boost::system::error_code ec;
+        sockets_[i]->cancel();
         sockets_[i]->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
         sockets_[i]->close(ec);
     }
 
+    // make sure all threads join
+    work_.reset();
     io_service_->stop();
+    pending_first_condition_->notify_all();
+
+    if (role == "client")
+    {
+        is_pending_add_ = false;
+        is_set_message_ = true;
+        pending_add_condition_.notify_all();
+        setting_message_condition_->notify_all();
+        getting_message_condition_->notify_all();
+    }
+
     communication_threads_.join_all();
 }
 
@@ -344,8 +272,6 @@ void Communication::Run()
 
 /*
  * Adds a client, listens for another
- *  - infinate loop
- *  - loops recursively
  */
 void Communication::AddClient(const boost::system::error_code& error,
                               boost::shared_ptr<boost::asio::ip::tcp::socket> sock)
@@ -362,8 +288,6 @@ void Communication::AddClient(const boost::system::error_code& error,
 
         // keep subscriber record
         sockets_.push_back(sock);
-        handle_returned_.push_back(true);
-        remove_.push_back(false);
 
         // listen for the next subscriber, use another socket
         boost::shared_ptr<boost::asio::ip::tcp::socket> next_sock(new boost::asio::ip::tcp::socket(*io_service_));
@@ -375,12 +299,6 @@ void Communication::AddClient(const boost::system::error_code& error,
 
         // unlock any "sockets_.size()" usage/modification
         com_mutex_.unlock();
-
-        // inform on first connection
-        if (sockets_.size() == 1)
-        {
-            pending_first_->notify_one();
-        }
     }
 
     // report any errors
@@ -396,21 +314,16 @@ void Communication::AddClient(const boost::system::error_code& error,
 /*
  * Handles asyncronous write operations
  *  - reports message deliverry for each client's socket
- *  - signals any client disconnections
+ *  - removes and reports any disconnected clients
  */
 void Communication::WriteHandler(const boost::system::error_code& error,
                              std::size_t bytes_transferred,
-                             int i)
+                             boost::shared_ptr<boost::asio::ip::tcp::socket> soc)
 {
-    boost::mutex::scoped_lock write_lock(com_mutex_);
-
-    if (iter_pending_)
-    {
-        pending_iter_.wait(write_lock);
-    }
+    com_mutex_.lock();
 
     // report successful delivery
-    if(bytes_transferred > 0)
+    if(bytes_transferred == 30)
     {
         out_mutex_.lock();
         std::cout << "[" << boost::this_thread::get_id()
@@ -418,26 +331,39 @@ void Communication::WriteHandler(const boost::system::error_code& error,
         out_mutex_.unlock();
     }
 
-    // flag client disconnection
+    // remove client
     else
     {
-        remove_[i] = true;
+        soc->close();
+
+        // remove disconnected clients' socket
+        for (unsigned i=0; i<sockets_.size(); i++)
+        {
+            if (!sockets_[i]->is_open())
+            {
+                sockets_.erase(sockets_.begin()+i);
+
+                // report disconnection
+                out_mutex_.lock();
+                std::cout << "\n[" << boost::this_thread::get_id()
+                          <<  "] << Subscriber disconnected \n" << std::endl;
+                out_mutex_.unlock();
+            }
+        }
     }
 
-    // flag for this socket's read trial completion
-    handle_returned_[i] = true;
+    com_mutex_.unlock();
 }
 
 /*
  * Connects to a server
  *  - on success: adds all server related elements
- *  - infinate loop
- *  - loops recursively on error condition: "connection refused"
+ *  - on failure: retries
  */
 void Communication::AddServer(const boost::system::error_code& error,
                               boost::shared_ptr<boost::asio::ip::tcp::socket> soc,
                               boost::asio::ip::tcp::endpoint endpoint,
-                              std::string server)
+                              boost::shared_ptr<std::string> server)
 {
     // remote host is now connected
     if (!error)
@@ -448,16 +374,21 @@ void Communication::AddServer(const boost::system::error_code& error,
         // add a pub, along with all related pub elements
         sockets_.push_back(soc);
         servers_.push_back(server);
-        buf_.push_back(*new boost::array<char, 30>);
-        buf_[buf_.size()-1].assign(0);  // initialise the buffer
-        handle_returned_.push_back(true);
-        remove_.push_back(false);
+        boost::shared_ptr< boost::array<char, 30> > new_buf_ptr(new boost::array<char, 30>);
+        new_buf_ptr->assign(0);
+        buf_.push_back(new_buf_ptr);
+        is_reading_.push_back(false);
 
         // report successful connection
         out_mutex_.lock();
         std::cout << "\n[" << boost::this_thread::get_id()
-                  << "] >> Connection to " << endpoint << " succeded \n" << std::endl;
+                  << "] >> Connection to " << *server
+                  << " at " << endpoint << " succeded \n" << std::endl;
         out_mutex_.unlock();
+
+        // let the read operations begin/continue
+        is_pending_add_ = false;
+        pending_add_condition_.notify_one();
 
         // unlock any "sockets_.size()" usage/modification
         com_mutex_.unlock();
@@ -465,14 +396,15 @@ void Communication::AddServer(const boost::system::error_code& error,
         // inform on first connection
         if (sockets_.size() == 1)
         {
-            pending_first_->notify_one();
+            pending_first_condition_->notify_one();
         }
     }
 
     // remote host is not connected yet
     else if (error.message() == "Connection refused")
     {
-        // try again (recursively)
+        // try again
+        usleep(100000);
         soc.reset(new boost::asio::ip::tcp::socket(*io_service_));
         soc->async_connect(endpoint,
                            boost::bind(&Communication::AddServer,
@@ -494,50 +426,80 @@ void Communication::AddServer(const boost::system::error_code& error,
 
 /*
  * Handles asyncronous read operations
- *  - displays message from each server's socket
- *  - signals any server disconnections
+ *  - sets message_ from server(s)
+ *  - removes any disconnected servers
  */
 void Communication::ReadHandler(const boost::system::error_code& error,
                                 std::size_t bytes_transferred,
-                                std::string client_id,
-                                int i)
+                                boost::shared_ptr <boost::array<char, 30> > buffer,
+                                boost::shared_ptr <std::string> server_name,
+                                boost::shared_ptr<boost::asio::ip::tcp::socket> soc)
 {
-    boost::mutex::scoped_lock read_lock(com_mutex_);
-
-    if (iter_pending_)
-    {
-        pending_iter_.wait(read_lock);
-    }
+    com_mutex_.lock();
 
     // successful read
     if (bytes_transferred == 30)
     {
-        // append this object's id and this thread's id to the message
-        std::string message = buf_[i].data();
-        message = message.substr(0, 30);
-        message.append("to ");
-        message.append(client_id);
-        message.append(" [thr_ID: ");
-        message.append(boost::lexical_cast<std::string>(boost::this_thread::get_id()));
-        message.append("]");
+        boost::mutex::scoped_lock message_lock(message_mutex_);
 
-        out_mutex_.lock();
+        // let an unread message be read
+        while (!is_picked_message_)
+        {
+            getting_message_condition_->wait(message_lock);
+        }
 
-        // display message
-        std::cout << message << std::endl;
+        // write message_ from buffer
+        message_ = buffer->data();
+        message_ = message_.substr(0, 30);
 
         // clear the read buffer
-        buf_[i].assign(0);
+        buffer->assign(0);
 
-        out_mutex_.unlock();
+        is_picked_message_ = false;
+        is_set_message_ = true;
+        setting_message_condition_->notify_one();
+
+        // async_read next message on this server
+        boost::asio::async_read(*soc,
+                                boost::asio::buffer(*buffer, 30),
+                                boost::bind(&Communication::ReadHandler,
+                                            this,
+                                            boost::asio::placeholders::error,
+                                            boost::asio::placeholders::bytes_transferred,
+                                            buffer,
+                                            server_name,
+                                            soc));
     }
 
     else  // server is disconnected and will be removed
     {
-        remove_[i] = true;
+        out_mutex_.lock();
+        std::cout << "\n[" << boost::this_thread::get_id()
+                  << "] << " << *server_name << " is now disconnected \n" << std::endl;
+        out_mutex_.unlock();
+
+        // close and erase all server related elements
+        soc->close();
+
+        for (unsigned i=0; i<sockets_.size(); i++)
+        {
+            if (!sockets_[i]->is_open())
+            {
+                sockets_.erase(sockets_.begin()+i);
+                servers_.erase(servers_.begin()+i);
+                buf_.erase(buf_.begin()+i);
+                is_reading_.erase(is_reading_.begin()+i);
+            }
+        }
+
+        // check if all servers are disconnected
+        if (sockets_.size() == 0)
+        {
+            // report for waiting on <RETURN> keystroke
+            NoServerReport();
+        }
     }
 
-    // flag for this socket's read trial completion
-    handle_returned_[i] = true;
+    com_mutex_.unlock();
 }
 

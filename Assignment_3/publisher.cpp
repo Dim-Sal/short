@@ -22,13 +22,6 @@ void Publisher::PublishData()
     // initialise the sleep duration
     int sleep_duration = 0;
 
-    // wait for the first connection
-    boost::mutex::scoped_lock first_conn(m_);
-    while(com_->NoConnections() && com_->Running())
-    {
-        com_->pending_first()->wait(first_conn);
-    }
-
     // publish even if all subscribers are disconnected (they can re-connect)
     while (com_->Running())
     {
@@ -49,7 +42,7 @@ void Publisher::PublishData()
             usleep(sleep_duration);
         }
 
-        // sleep for a while (fixed intervals)...
+        // sleep for a while (fixed intervals)
         else
         {
             usleep(upper_bound_ms_ * 1000);

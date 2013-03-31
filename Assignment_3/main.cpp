@@ -1,24 +1,28 @@
-/* ------------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------------
  * Publishers-Subscribers NETWORK demo
  *   - main function resides here
  *   - launches a single publisher or a single subscriber
  *   - arguements are passed through the corresponding configuration file
  *   - programme runs INFINATE LOOPS (press ENTER in the active terminal to exit)
  *
- * ------------------------------------------------------------------------------
+ * ---------------------------------------------------------------------------------
  * USAGE: takes 1 arguement (the configuration file)
  *
  *             e.g.  1st arguement: file_name.config
  *
- * ------------------------------------------------------------------------------
- * NOTES: (1) in the configuration file, the threads count should be at least two,
- *            as there should always be one acceptor/connector thread
+ * ---------------------------------------------------------------------------------
+ * NOTES: (1) in PUB configuration file, the threads count should be at least two,
+ *            as there should always be a thread available for accepting clients
  *
  *                  e.g. <local ... communication_threads_count = "2"/>
  *
- *        (2) all sub's pubs (servers) should be launched BEFORE the sub
+ *        (2) in SUB configuration file, the threads count should be at least three,
+ *            as there should always be a thread available for connecting to servers
+ *            and one thread for the message display
  *
- * ------------------------------------------------------------------------------
+ *                  e.g. <local ... communication_threads_count = "3"/>
+ *
+ * ---------------------------------------------------------------------------------
  * Author: Dimitris Saliaris
  * Date:   March 18th, 2013
  */
@@ -97,9 +101,15 @@ int main(int argc, char *argv[])
         Subscriber sub;
         sub.set_id(options.sub_id);
 
-        // launch the sub and start the message display
+        // launch the sub
         sub.Launch(options);
-        sub.com()->io_service()->post(boost::bind(&Subscriber::DisplayMessage,
+
+        // start receiving messages from pubs
+        sub.com()->io_service()->post(boost::bind(&Subscriber::GetMessages,
+                                                  &sub));
+
+        // start message display
+        sub.com()->io_service()->post(boost::bind(&Subscriber::DisplayMessages,
                                                   &sub));
 
         // listen for exit signal from user
