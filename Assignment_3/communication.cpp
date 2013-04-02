@@ -115,6 +115,8 @@ void Communication::Connect(int servers_count, std::vector<Connection> servers)
         // get the pub from the options
         Connection con = servers[i];
         boost::shared_ptr<std::string> server_name(new std::string(con.pub_id));
+        boost::shared_ptr<std::string> server_ip(new std::string(con.ip));
+        boost::shared_ptr<std::string> server_port(new std::string(con.port));
 
         try
         {
@@ -130,7 +132,9 @@ void Communication::Connect(int servers_count, std::vector<Connection> servers)
                                             boost::asio::placeholders::error(),
                                             sock,
                                             endpoint,
-                                            server_name));
+                                            server_name,
+                                            server_ip,
+                                            server_port));
 
             std::cout << "[" << boost::this_thread::get_id()
                       << "] Connecting to: " << endpoint << std::endl;
@@ -363,7 +367,9 @@ void Communication::WriteHandler(const boost::system::error_code& error,
 void Communication::AddServer(const boost::system::error_code& error,
                               boost::shared_ptr<boost::asio::ip::tcp::socket> soc,
                               boost::asio::ip::tcp::endpoint endpoint,
-                              boost::shared_ptr<std::string> server)
+                              boost::shared_ptr<std::string> server,
+                              boost::shared_ptr<std::string> ip,
+                              boost::shared_ptr<std::string> port)
 {
     // remote host is now connected
     if (!error)
@@ -378,6 +384,11 @@ void Communication::AddServer(const boost::system::error_code& error,
         new_buf_ptr->assign(0);
         buf_.push_back(new_buf_ptr);
         is_reading_.push_back(false);
+        Connection new_server;
+        new_server.pub_id = *server;
+        new_server.ip = *ip;
+        new_server.port = *port;
+        connections_.push_back(new_server);
 
         // report successful connection
         out_mutex_.lock();
@@ -412,7 +423,9 @@ void Communication::AddServer(const boost::system::error_code& error,
                                        boost::asio::placeholders::error(),
                                        soc,
                                        endpoint,
-                                       server));
+                                       server,
+                                       ip,
+                                       port));
     }
 
     else // report error
@@ -478,17 +491,27 @@ void Communication::ReadHandler(const boost::system::error_code& error,
                   << "] << " << *server_name << " is now disconnected \n" << std::endl;
         out_mutex_.unlock();
 
-        // close and erase all server related elements
+
+        // close this socket
         soc->close();
 
         for (unsigned i=0; i<sockets_.size(); i++)
         {
+            // find the closed socket
             if (!sockets_[i]->is_open())
             {
+                // try to reconnect to this server
+                std::vector<Connection> disconnected_server;
+                disconnected_server.push_back(connections_[i]);
+                Connect(1, disconnected_server);
+
+                // erase all server related elements
                 sockets_.erase(sockets_.begin()+i);
                 servers_.erase(servers_.begin()+i);
                 buf_.erase(buf_.begin()+i);
                 is_reading_.erase(is_reading_.begin()+i);
+
+                break;
             }
         }
 

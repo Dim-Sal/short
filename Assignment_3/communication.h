@@ -63,7 +63,9 @@ class Communication
         void AddServer(const boost::system::error_code& error,
                        boost::shared_ptr<boost::asio::ip::tcp::socket> soc,
                        boost::asio::ip::tcp::endpoint endpoint,
-                       boost::shared_ptr<std::string> server);
+                       boost::shared_ptr<std::string> server,
+                       boost::shared_ptr<std::string> ip,
+                       boost::shared_ptr<std::string> port);
         void ReadHandler(const boost::system::error_code& error,
                          std::size_t bytes_transferred,
                          boost::shared_ptr <boost::array<char, 30> > buffer,
@@ -84,18 +86,21 @@ class Communication
         boost::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor_;
 
         // sub only
-        bool is_set_message_,           // flag for message_ assignment
+        bool is_pending_add_,           // flag for a pending server add
              is_picked_message_,        // flag for message_ process
-             is_pending_add_;           // flag for a pending server add
+             is_set_message_;           // flag for message_ assignment
+
         std::string message_;           // shared resource for reads
         boost::mutex message_mutex_;    // mutex for message_ access
         std::vector<bool> is_reading_;  // flags for recently added server sockets
         std::vector< boost::shared_ptr <boost::array<char, 30> > > buf_;         // pointers to read buffers
         std::vector< boost::shared_ptr <std::string> > servers_;                 // pointers to server names
+        std::vector<Connection> connections_;                                    // connection data for servers
         boost::condition_variable pending_add_condition_;                        // condition for pending add
-        boost::shared_ptr<boost::condition_variable> setting_message_condition_, // condition for setting message
-                                                     getting_message_condition_, // condition for getting message
-                                                     pending_first_condition_;   // condition for first connection
+        boost::shared_ptr<boost::condition_variable> pending_first_condition_,   // condition for first connection
+                                                     setting_message_condition_, // condition for setting message
+                                                     getting_message_condition_; // condition for getting message
+
 };
 
 #endif // COMMUNICATION_H
