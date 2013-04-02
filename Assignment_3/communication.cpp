@@ -178,9 +178,10 @@ void Communication::Read()
                                                     buf_[i],
                                                     servers_[i],
                                                     sockets_[i]));
+                is_reading_[i] = true;
+                break;
             }
 
-            is_reading_[i] = true;
         }
 
         is_pending_add_ = true;
