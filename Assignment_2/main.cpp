@@ -5,27 +5,21 @@
 
 /* ---------------------------------------------------------------------------------------------
  * Publishers-Subscribers demo
- *   - main function resides here
- *   - arguements are passed through the terminal
- *   - programme runs INFINATE LOOPS (manually kill to exit)
- *
  * ---------------------------------------------------------------------------------------------
- * USAGE: takes 2 arguements (or none -> default) as follows
+ * Usage: takes 2 arguements (or none -> default) as follows
  *
  *               1st arguement: number of publisher threads
  *               2nd arguement: number of subscriber threads
- *
  * ---------------------------------------------------------------------------------------------
- * DEFAULT options:
+ * Default options:
  *                    publishers: [ 5] threads
  *                   subscribers: [15] threads
- *
+ * ---------------------------------------------------------------------------------------------
+ * NOTE : programme runs INFINATE LOOPS, manually kill to exit)
  * ---------------------------------------------------------------------------------------------
  * Author: Dimitris Saliaris
  * Date:   Feb 24th, 2013
  */
-
-
 
 /*
  * Structure that holds user-defined options
